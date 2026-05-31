@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package emotion;
+
+option csharp_namespace = "BackendMainDotnet.Protos";
+
+service EmotionService {
+  rpc DetectEmotion (EmotionRequest) returns (EmotionResponse);
+}
+
+message EmotionRequest {
+  bytes image_bytes = 1;
+}
+
+message EmotionResponse {
+  string emotion = 1;
+  float confidence = 2;
+  Box bounding_box = 3;
+}
+
+message Box {
+  float xmin = 1;
+  float ymin = 2;
+  float xmax = 3;
+  float ymax = 4;
+}
