@@ -37,8 +37,8 @@ namespace BackendMainDotnet.Controllers
 
                 byte[] imageBytes = Convert.FromBase64String(base64Data);
 
-                // Gọi dịch vụ Python qua gRPC để nhận diện khuôn mặt và cảm xúc
-                var response = await _grpcClient.DetectEmotionAsync(imageBytes);
+                // Gọi dịch vụ Python qua gRPC để nhận diện khuôn mặt và cảm xúc (luồng Stream có làm mượt)
+                var response = await _grpcClient.DetectEmotionStreamAsync(imageBytes);
 
                 // Gửi kết quả ngược lại cho Client đã gửi frame
                 await Clients.Caller.SendAsync("ReceiveEmotion", new

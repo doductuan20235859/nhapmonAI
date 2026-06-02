@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14protos/emotion.proto\x12\x07\x65motion\"%\n\x0e\x45motionRequest\x12\x13\n\x0bimage_bytes\x18\x01 \x01(\x0c\"Z\n\x0f\x45motionResponse\x12\x0f\n\x07\x65motion\x18\x01 \x01(\t\x12\x12\n\nconfidence\x18\x02 \x01(\x02\x12\"\n\x0c\x62ounding_box\x18\x03 \x01(\x0b\x32\x0c.emotion.Box\"=\n\x03\x42ox\x12\x0c\n\x04xmin\x18\x01 \x01(\x02\x12\x0c\n\x04ymin\x18\x02 \x01(\x02\x12\x0c\n\x04xmax\x18\x03 \x01(\x02\x12\x0c\n\x04ymax\x18\x04 \x01(\x02\x32T\n\x0e\x45motionService\x12\x42\n\rDetectEmotion\x12\x17.emotion.EmotionRequest\x1a\x18.emotion.EmotionResponseB\x1b\xaa\x02\x18\x42\x61\x63kendMainDotnet.Protosb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14protos/emotion.proto\x12\x07\x65motion\"%\n\x0e\x45motionRequest\x12\x13\n\x0bimage_bytes\x18\x01 \x01(\x0c\"Z\n\x0f\x45motionResponse\x12\x0f\n\x07\x65motion\x18\x01 \x01(\t\x12\x12\n\nconfidence\x18\x02 \x01(\x02\x12\"\n\x0c\x62ounding_box\x18\x03 \x01(\x0b\x32\x0c.emotion.Box\"=\n\x03\x42ox\x12\x0c\n\x04xmin\x18\x01 \x01(\x02\x12\x0c\n\x04ymin\x18\x02 \x01(\x02\x12\x0c\n\x04xmax\x18\x03 \x01(\x02\x12\x0c\n\x04ymax\x18\x04 \x01(\x02\x32\xa4\x01\n\x0e\x45motionService\x12H\n\x13\x44\x65tectEmotionStream\x12\x17.emotion.EmotionRequest\x1a\x18.emotion.EmotionResponse\x12H\n\x13\x44\x65tectEmotionSingle\x12\x17.emotion.EmotionRequest\x1a\x18.emotion.EmotionResponseB\x1b\xaa\x02\x18\x42\x61\x63kendMainDotnet.Protosb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,6 +38,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EMOTIONRESPONSE']._serialized_end=162
   _globals['_BOX']._serialized_start=164
   _globals['_BOX']._serialized_end=225
-  _globals['_EMOTIONSERVICE']._serialized_start=227
-  _globals['_EMOTIONSERVICE']._serialized_end=311
+  _globals['_EMOTIONSERVICE']._serialized_start=228
+  _globals['_EMOTIONSERVICE']._serialized_end=392
 # @@protoc_insertion_point(module_scope)

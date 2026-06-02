@@ -34,8 +34,13 @@ class EmotionServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.DetectEmotion = channel.unary_unary(
-                '/emotion.EmotionService/DetectEmotion',
+        self.DetectEmotionStream = channel.unary_unary(
+                '/emotion.EmotionService/DetectEmotionStream',
+                request_serializer=protos_dot_emotion__pb2.EmotionRequest.SerializeToString,
+                response_deserializer=protos_dot_emotion__pb2.EmotionResponse.FromString,
+                _registered_method=True)
+        self.DetectEmotionSingle = channel.unary_unary(
+                '/emotion.EmotionService/DetectEmotionSingle',
                 request_serializer=protos_dot_emotion__pb2.EmotionRequest.SerializeToString,
                 response_deserializer=protos_dot_emotion__pb2.EmotionResponse.FromString,
                 _registered_method=True)
@@ -44,8 +49,16 @@ class EmotionServiceStub(object):
 class EmotionServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def DetectEmotion(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def DetectEmotionStream(self, request, context):
+        """Xử lý luồng video thời gian thực từ Webcam (có làm mượt)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DetectEmotionSingle(self, request, context):
+        """Xử lý ảnh tĩnh tải lên đơn lẻ (suy luận tức thời, không làm mượt)
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -53,8 +66,13 @@ class EmotionServiceServicer(object):
 
 def add_EmotionServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'DetectEmotion': grpc.unary_unary_rpc_method_handler(
-                    servicer.DetectEmotion,
+            'DetectEmotionStream': grpc.unary_unary_rpc_method_handler(
+                    servicer.DetectEmotionStream,
+                    request_deserializer=protos_dot_emotion__pb2.EmotionRequest.FromString,
+                    response_serializer=protos_dot_emotion__pb2.EmotionResponse.SerializeToString,
+            ),
+            'DetectEmotionSingle': grpc.unary_unary_rpc_method_handler(
+                    servicer.DetectEmotionSingle,
                     request_deserializer=protos_dot_emotion__pb2.EmotionRequest.FromString,
                     response_serializer=protos_dot_emotion__pb2.EmotionResponse.SerializeToString,
             ),
@@ -70,7 +88,7 @@ class EmotionService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def DetectEmotion(request,
+    def DetectEmotionStream(request,
             target,
             options=(),
             channel_credentials=None,
@@ -83,7 +101,34 @@ class EmotionService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/emotion.EmotionService/DetectEmotion',
+            '/emotion.EmotionService/DetectEmotionStream',
+            protos_dot_emotion__pb2.EmotionRequest.SerializeToString,
+            protos_dot_emotion__pb2.EmotionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DetectEmotionSingle(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/emotion.EmotionService/DetectEmotionSingle',
             protos_dot_emotion__pb2.EmotionRequest.SerializeToString,
             protos_dot_emotion__pb2.EmotionResponse.FromString,
             options,

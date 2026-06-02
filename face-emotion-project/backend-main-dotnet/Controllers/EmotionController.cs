@@ -33,7 +33,7 @@ namespace BackendMainDotnet.Controllers
                 await file.CopyToAsync(ms);
                 byte[] imageBytes = ms.ToArray();
 
-                var response = await _grpcClient.DetectEmotionAsync(imageBytes);
+                var response = await _grpcClient.DetectEmotionSingleAsync(imageBytes);
 
                 return Ok(new
                 {

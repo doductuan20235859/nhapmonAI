@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 import urllib.request
 import sys
-import time
 
 # Configure UTF-8 encoding for stdout on Windows to prevent UnicodeEncodeError
 try:
@@ -24,10 +23,9 @@ class EmotionDetector:
         # Danh sách 8 nhãn của mô hình Microsoft Emotion FerPlus
         self.labels = ['Neutral', 'Happy', 'Surprise', 'Sad', 'Angry', 'Disgust', 'Fear', 'Contempt']
         
-        # Lịch sử để làm mượt kết quả
+        # Lịch sử để làm mượt kết quả cho luồng Stream
         self.history = []
         self.history_max_len = 5 # Làm mượt qua 5 frame gần nhất (~1.5 giây)
-        self.last_detect_time = 0.0 # Lưu mốc thời gian của frame cuối cùng
         self.session = None
 
         if not ONNX_AVAILABLE:
@@ -41,11 +39,9 @@ class EmotionDetector:
 
         # 2. Khởi tạo phiên suy luận ONNX (Inference Session)
         try:
-            # Tự động chọn GPU nếu có, ngược lại sử dụng CPU làm mặc định
             available_providers = ort.get_available_providers()
             print(f"[*] ONNX Runtime khả dụng với các Providers: {available_providers}")
             
-            # Ưu tiên CUDA (GPU) trước CPU
             providers = []
             if "CUDAExecutionProvider" in available_providers:
                 providers.append("CUDAExecutionProvider")
@@ -54,7 +50,6 @@ class EmotionDetector:
             print(f"[*] Đang khởi tạo phiên suy luận với Providers: {providers}...")
             self.session = ort.InferenceSession(self.model_path, providers=providers)
             
-            # Lấy tên của đầu vào và đầu ra từ mô hình
             self.input_name = self.session.get_inputs()[0].name
             self.output_name = self.session.get_outputs()[0].name
             print("[+] Đã tải thành công mô hình ONNX. Sẵn sàng xử lý suy luận.")
@@ -87,80 +82,102 @@ class EmotionDetector:
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum(axis=0)
 
-    def detect_emotion(self, cropped_face):
+    def _preprocess(self, cropped_face):
         """
-        Nhận vào ảnh mặt BGR, thực hiện tiền xử lý và chạy suy luận bằng ONNX.
-        Trả về: (emotion_label, confidence)
+        Tiền xử lý ảnh xám 64x64 dạng float32
+        """
+        gray = cv2.cvtColor(cropped_face, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (64, 64))
+        input_data = resized.astype(np.float32)
+        return np.expand_dims(np.expand_dims(input_data, axis=0), axis=0)
+
+    def _map_label(self, label):
+        """
+        Ánh xạ nhãn từ FerPlus sang nhãn Frontend React
+        """
+        mapping = {
+            'Neutral': 'Neutral',
+            'Happy': 'Happy',
+            'Surprise': 'Surprise',
+            'Sad': 'Sad',
+            'Angry': 'Angry',
+            'Disgust': 'Disgust',
+            'Fear': 'Fear',
+            'Contempt': 'Neutral' # Contempt được gộp vào Neutral
+        }
+        return mapping.get(label, 'Neutral')
+
+    def detect_emotion_stream(self, cropped_face):
+        """
+        Nhận dạng cảm xúc luồng Camera thời gian thực (CÓ bộ lọc làm mượt trung bình động)
         """
         if cropped_face is None or cropped_face.size == 0:
             return "Unknown", 0.0
 
-        # Tự động xóa lịch sử làm mượt nếu đây là yêu cầu nhận diện ảnh tĩnh đơn lẻ (upload ảnh)
-        # Tần suất gửi frame của webcam là 300ms. Nếu thời gian chờ > 1.0 giây, ta coi là một phiên mới.
-        current_time = time.time()
-        if current_time - self.last_detect_time > 1.0:
-            self.history.clear()
-        self.last_detect_time = current_time
-
         if not ONNX_AVAILABLE or self.session is None:
-            # Chế độ giả lập (Mock) khi không có thư viện / mô hình
             mock_emotions = ["Happy", "Neutral", "Surprise", "Sad", "Angry"]
             idx = int(np.random.choice(len(mock_emotions)))
             confidence = float(np.random.uniform(0.65, 0.95))
             return mock_emotions[idx], confidence
 
         try:
-            # 1. Tiền xử lý ảnh (Yêu cầu của mô hình Emotion FerPlus)
-            # - Chuyển sang ảnh xám (Grayscale)
-            gray = cv2.cvtColor(cropped_face, cv2.COLOR_BGR2GRAY)
-            # - Resize về kích thước 64x64
-            resized = cv2.resize(gray, (64, 64))
-            
-            # - Định dạng đầu vào: float32, định dạng Tensor [batch, channel, height, width] -> (1, 1, 64, 64)
-            input_data = resized.astype(np.float32)
-            input_data = np.expand_dims(np.expand_dims(input_data, axis=0), axis=0)
-
-            # 2. Chạy suy luận ONNX Runtime
+            # 1. Tiền xử lý & Suy luận
+            input_data = self._preprocess(cropped_face)
             outputs = self.session.run([self.output_name], {self.input_name: input_data})
-            logits = outputs[0][0] # Kết quả thô dạng mảng 8 phần tử
+            logits = outputs[0][0]
 
-            # 3. Tính phân phối xác suất bằng Softmax
+            # 2. Xác suất qua Softmax
             probabilities = self._softmax(logits)
 
-            # 4. Thêm xác suất hiện tại vào lịch sử làm mượt kết quả
+            # 3. Đưa vào lịch sử trượt
             self.history.append(probabilities)
             if len(self.history) > self.history_max_len:
                 self.history.pop(0)
 
-            # 5. Tính trung bình cộng xác suất trên toàn bộ lịch sử
+            # 4. Tính trung bình xác suất trong bộ đệm làm mượt
             avg_probabilities = np.mean(self.history, axis=0)
             dominant_idx = np.argmax(avg_probabilities)
             
             dominant_label = self.labels[dominant_idx]
             confidence = float(avg_probabilities[dominant_idx])
 
-            # 6. Ánh xạ cảm xúc: Nếu là 'Contempt' (Khinh bỉ), gom nhóm thành 'Neutral'
-            if dominant_label == 'Contempt':
-                emotion = 'Neutral'
-            elif dominant_label == 'Contempt' or dominant_label == 'Contempt':
-                # Chuyển đổi tên gọi nhãn cho khớp hoàn toàn với Frontend React
-                emotion = 'Neutral'
-            
-            # Ánh xạ tên gọi
-            mapping = {
-                'Neutral': 'Neutral',
-                'Happy': 'Happy',
-                'Surprise': 'Surprise',
-                'Sad': 'Sad',
-                'Angry': 'Angry',
-                'Disgust': 'Disgust',
-                'Fear': 'Fear',
-                'Contempt': 'Neutral'
-            }
-            emotion = mapping.get(dominant_label, 'Neutral')
-
-            return emotion, confidence
+            return self._map_label(dominant_label), confidence
 
         except Exception as e:
-            print(f"[!] Lỗi khi chạy suy luận ONNX: {e}")
+            print(f"[!] Lỗi khi chạy suy luận ONNX Stream: {e}")
+            return "Neutral", 0.5
+
+    def detect_emotion_single(self, cropped_face):
+        """
+        Nhận dạng cảm xúc của ảnh tĩnh tải lên (KHÔNG làm mượt, kết quả tức thời độc lập)
+        """
+        if cropped_face is None or cropped_face.size == 0:
+            return "Unknown", 0.0
+
+        if not ONNX_AVAILABLE or self.session is None:
+            mock_emotions = ["Happy", "Neutral", "Surprise", "Sad", "Angry"]
+            idx = int(np.random.choice(len(mock_emotions)))
+            confidence = float(np.random.uniform(0.65, 0.95))
+            return mock_emotions[idx], confidence
+
+        try:
+            # 1. Tiền xử lý & Suy luận
+            input_data = self._preprocess(cropped_face)
+            outputs = self.session.run([self.output_name], {self.input_name: input_data})
+            logits = outputs[0][0]
+
+            # 2. Xác suất qua Softmax
+            probabilities = self._softmax(logits)
+            dominant_idx = np.argmax(probabilities)
+            
+            dominant_label = self.labels[dominant_idx]
+            confidence = float(probabilities[dominant_idx])
+
+            # Khi nhận ảnh tĩnh, ta xóa bộ nhớ đệm Stream để không ảnh hưởng nếu sau đó bật lại camera
+            self.history.clear()
+
+            return self._map_label(dominant_label), confidence
+
+        except Exception as e:
+            print(f"[!] Lỗi khi chạy suy luận ONNX Single: {e}")
             return "Neutral", 0.5

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
-
+//http://localhost:5173
 function App() {
   // State quản lý kết nối và camera
   const [isCameraActive, setIsCameraActive] = useState(false);

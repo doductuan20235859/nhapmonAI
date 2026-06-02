@@ -5,7 +5,11 @@ package emotion;
 option csharp_namespace = "BackendMainDotnet.Protos";
 
 service EmotionService {
-  rpc DetectEmotion (EmotionRequest) returns (EmotionResponse);
+  // Xử lý luồng video thời gian thực từ Webcam (có làm mượt)
+  rpc DetectEmotionStream (EmotionRequest) returns (EmotionResponse);
+  
+  // Xử lý ảnh tĩnh tải lên đơn lẻ (suy luận tức thời, không làm mượt)
+  rpc DetectEmotionSingle (EmotionRequest) returns (EmotionResponse);
 }
 
 message EmotionRequest {

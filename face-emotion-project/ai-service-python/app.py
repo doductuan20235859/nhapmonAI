@@ -34,11 +34,10 @@ class EmotionServiceServicer:
         self.emotion_detector = EmotionDetector()
         print("[+] Khởi tạo AI hoàn tất. Sẵn sàng xử lý dữ liệu.")
 
-    def DetectEmotion(self, request, context):
+    def DetectEmotionStream(self, request, context):
         """
-        Xử lý yêu cầu gRPC từ Backend .NET gửi sang
+        Xử lý yêu cầu gRPC từ webcam stream gửi sang (có làm mượt)
         """
-        # Nếu chưa compile proto, trả về lỗi gRPC
         if not PROTO_COMPILED:
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details("Proto files not compiled on server side")
@@ -53,21 +52,16 @@ class EmotionServiceServicer:
                     bounding_box=emotion_pb2.Box(xmin=0, ymin=0, xmax=0, ymax=0)
                 )
 
-            # 1. Phát hiện và cắt mặt bằng MediaPipe
             cropped_face, bbox = self.face_processor.process_image(image_bytes)
-            
             if cropped_face is None or bbox is None:
-                # Không tìm thấy khuôn mặt
                 return emotion_pb2.EmotionResponse(
                     emotion="No Face Detected",
                     confidence=0.0,
                     bounding_box=emotion_pb2.Box(xmin=0, ymin=0, xmax=0, ymax=0)
                 )
 
-            # 2. Nhận diện cảm xúc bằng MiniXception
-            emotion, confidence = self.emotion_detector.detect_emotion(cropped_face)
+            emotion, confidence = self.emotion_detector.detect_emotion_stream(cropped_face)
 
-            # Trả về kết quả cho client
             return emotion_pb2.EmotionResponse(
                 emotion=emotion,
                 confidence=confidence,
@@ -78,9 +72,52 @@ class EmotionServiceServicer:
                     ymax=bbox["ymax"]
                 )
             )
-            
         except Exception as e:
-            print(f"[!] Lỗi hệ thống khi xử lý DetectEmotion: {e}")
+            print(f"[!] Lỗi hệ thống khi xử lý DetectEmotionStream: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Server error: {str(e)}")
+            return None
+
+    def DetectEmotionSingle(self, request, context):
+        """
+        Xử lý yêu cầu gRPC từ ảnh upload đơn lẻ (không làm mượt)
+        """
+        if not PROTO_COMPILED:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details("Proto files not compiled on server side")
+            return None
+
+        try:
+            image_bytes = request.image_bytes
+            if not image_bytes:
+                return emotion_pb2.EmotionResponse(
+                    emotion="No Image Data",
+                    confidence=0.0,
+                    bounding_box=emotion_pb2.Box(xmin=0, ymin=0, xmax=0, ymax=0)
+                )
+
+            cropped_face, bbox = self.face_processor.process_image(image_bytes)
+            if cropped_face is None or bbox is None:
+                return emotion_pb2.EmotionResponse(
+                    emotion="No Face Detected",
+                    confidence=0.0,
+                    bounding_box=emotion_pb2.Box(xmin=0, ymin=0, xmax=0, ymax=0)
+                )
+
+            emotion, confidence = self.emotion_detector.detect_emotion_single(cropped_face)
+
+            return emotion_pb2.EmotionResponse(
+                emotion=emotion,
+                confidence=confidence,
+                bounding_box=emotion_pb2.Box(
+                    xmin=bbox["xmin"],
+                    ymin=bbox["ymin"],
+                    xmax=bbox["xmax"],
+                    ymax=bbox["ymax"]
+                )
+            )
+        except Exception as e:
+            print(f"[!] Lỗi hệ thống khi xử lý DetectEmotionSingle: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Server error: {str(e)}")
             return None
